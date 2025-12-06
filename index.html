@@ -1,0 +1,300 @@
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO & SEARCH ENGINE TAGS -->
+    <title>Online Stopwatch | Precise & Free Timer with Laps</title>
+    <meta name="description" content="A free, accurate online stopwatch with dark mode and lap recording. Perfect for sports, cooking, and study timers. No ads, works on mobile.">
+    <meta name="keywords" content="stopwatch, online timer, countdown, lap timer, free stopwatch, web tools">
+    <meta name="author" content="Your Name Here">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for the numbers to look like a digital clock */
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .digit-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar for the lap list */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; 
+        }
+
+        /* Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+
+        /* Utility class for fading in new lap elements */
+        .fade-in {
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col items-center justify-center overflow-hidden">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-md bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-700 flex flex-col h-[80vh]">
+        
+        <!-- Header -->
+        <div class="bg-gray-800 p-4 text-center border-b border-gray-700">
+            <h1 class="text-gray-400 text-sm uppercase tracking-widest font-semibold">Pro Stopwatch</h1>
+        </div>
+
+        <!-- Timer Display area -->
+        <div class="flex-grow flex flex-col items-center justify-center p-8 bg-gray-900 relative">
+            
+            <!-- Main Time -->
+            <div class="digit-font text-6xl md:text-7xl font-bold tracking-tight text-white tabular-nums" id="display">
+                00:00<span class="text-3xl text-gray-500">.00</span>
+            </div>
+            
+            <!-- Status Indicator -->
+            <div id="status-dot" class="mt-4 w-3 h-3 rounded-full bg-gray-600 transition-all duration-300"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-gray-800 p-6 grid grid-cols-2 gap-4 border-t border-gray-700">
+            <!-- Reset / Lap Button (Left) -->
+            <button id="btn-reset-lap" onclick="handleResetLap()" class="group relative flex items-center justify-center p-4 rounded-2xl bg-gray-700 hover:bg-gray-600 active:bg-gray-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="lbl-reset-lap" class="font-semibold tracking-wide">Reset</span>
+                <!-- Icon: Rotate CCW (Reset) -->
+                <svg id="icon-reset" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <!-- Icon: Flag (Lap) - Hidden by default -->
+                <svg id="icon-lap" class="w-5 h-5 ml-2 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-8a2 2 0 012-2h10a2 2 0 012 2v6l-2-2h-2m2-16l-2-2h-2M3 3v1.5M3 21h3"></path></svg>
+            </button>
+
+            <!-- Start / Stop Button (Right) -->
+            <button id="btn-start-stop" onclick="handleStartStop()" class="group relative flex items-center justify-center p-4 rounded-2xl bg-green-600 hover:bg-green-500 active:bg-green-700 text-white shadow-lg transition-all duration-200">
+                <span id="lbl-start-stop" class="font-bold tracking-wide">Start</span>
+                <!-- Icon: Play -->
+                <svg id="icon-play" class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <!-- Icon: Pause - Hidden by default -->
+                <svg id="icon-pause" class="w-5 h-5 ml-2 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </button>
+        </div>
+
+        <!-- Laps List -->
+        <div class="bg-gray-900 border-t border-gray-800 flex-grow overflow-y-auto relative">
+             <div class="sticky top-0 bg-gray-900/95 backdrop-blur-sm p-2 text-xs text-gray-500 flex justify-between px-6 border-b border-gray-800 z-10">
+                <span>LAP NO.</span>
+                <span>SPLIT TIME</span>
+            </div>
+            <ul id="laps-list" class="divide-y divide-gray-800 text-sm">
+                <!-- Laps will appear here -->
+                <li id="empty-state" class="p-8 text-center text-gray-600 italic">
+                    No laps recorded yet
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let startTime = 0;
+        let elapsedTime = 0;
+        let timerInterval = null;
+        let isRunning = false;
+        let lapCounter = 1;
+
+        // DOM Elements
+        const displayEl = document.getElementById('display');
+        const statusDot = document.getElementById('status-dot');
+        const startStopBtn = document.getElementById('btn-start-stop');
+        const resetLapBtn = document.getElementById('btn-reset-lap');
+        const lblStartStop = document.getElementById('lbl-start-stop');
+        const lblResetLap = document.getElementById('lbl-reset-lap');
+        const iconPlay = document.getElementById('icon-play');
+        const iconPause = document.getElementById('icon-pause');
+        const iconReset = document.getElementById('icon-reset');
+        const iconLap = document.getElementById('icon-lap');
+        const lapsList = document.getElementById('laps-list');
+        const emptyState = document.getElementById('empty-state');
+
+        // Main Timer Function
+        function updateTime() {
+            // Check if the timer is still running before calculating time
+            if (!isRunning) return; 
+
+            const now = Date.now();
+            const time = now - startTime;
+            elapsedTime = time;
+            renderTime(time);
+        }
+
+        // Render time to the display
+        function renderTime(timeInMs) {
+            let ms = Math.floor((timeInMs % 1000) / 10);
+            let s = Math.floor((timeInMs / 1000) % 60);
+            let m = Math.floor((timeInMs / (1000 * 60)) % 60);
+            let h = Math.floor((timeInMs / (1000 * 60 * 60)));
+
+            // Formatting
+            let msStr = ms.toString().padStart(2, '0');
+            let sStr = s.toString().padStart(2, '0');
+            let mStr = m.toString().padStart(2, '0');
+
+            // If hours > 0, display HH:MM:SS format; otherwise, MM:SS.ms format
+            if (h > 0) {
+                 let hStr = h.toString().padStart(2, '0');
+                 displayEl.innerHTML = `${hStr}:${mStr}<span class="text-3xl text-gray-500">:${sStr}</span>`;
+            } else {
+                 // The main time is displayed as MM:SS with smaller milliseconds
+                 displayEl.innerHTML = `${mStr}:${sStr}<span class="text-3xl text-gray-500">.${msStr}</span>`;
+            }
+        }
+
+        function handleStartStop() {
+            if (isRunning) {
+                // STOP Logic
+                stopTimer();
+            } else {
+                // START Logic
+                startTimer();
+            }
+            updateUIState();
+        }
+
+        function handleResetLap() {
+            if (isRunning) {
+                // LAP Logic
+                recordLap();
+            } else {
+                // RESET Logic
+                resetTimer();
+            }
+        }
+
+        function startTimer() {
+            // Only start if not already running
+            if (timerInterval) return; 
+
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(updateTime, 10);
+            isRunning = true;
+            statusDot.classList.add('bg-green-500', 'animate-pulse-ring');
+            statusDot.classList.remove('bg-gray-600', 'bg-red-500');
+        }
+
+        function stopTimer() {
+            if (!timerInterval) return; // Only stop if running
+            
+            clearInterval(timerInterval);
+            timerInterval = null;
+            isRunning = false;
+            statusDot.classList.add('bg-red-500');
+            statusDot.classList.remove('bg-green-500', 'animate-pulse-ring', 'bg-gray-600');
+        }
+
+        function resetTimer() {
+            stopTimer(); // Ensure it's stopped first
+            elapsedTime = 0;
+            renderTime(0);
+            
+            // Reset Laps
+            lapsList.innerHTML = '';
+            lapsList.appendChild(emptyState);
+            emptyState.style.display = 'block';
+            lapCounter = 1;
+
+            // Reset UI Status
+            statusDot.classList.remove('bg-red-500', 'bg-green-500', 'animate-pulse-ring');
+            statusDot.classList.add('bg-gray-600');
+            
+            updateUIState();
+        }
+
+        function recordLap() {
+            if (!isRunning) return; // Cannot record a lap if stopped
+
+            if (emptyState.style.display !== 'none') {
+                emptyState.style.display = 'none';
+            }
+
+            const currentLapTime = elapsedTime;
+            const li = document.createElement('li');
+            li.className = 'flex justify-between items-center px-6 py-3 hover:bg-gray-800 transition-colors border-b border-gray-800 last:border-0 fade-in';
+            
+            // Calculate formatted time for the lap
+            let ms = Math.floor((currentLapTime % 1000) / 10).toString().padStart(2, '0');
+            let s = Math.floor((currentLapTime / 1000) % 60).toString().padStart(2, '0');
+            let m = Math.floor((currentLapTime / (1000 * 60)) % 60).toString().padStart(2, '0');
+            let h = Math.floor((currentLapTime / (1000 * 60 * 60)));
+            
+            let formattedTime = h > 0 
+                ? `${h.toString().padStart(2, '0')}:${m}:${s}.${ms}` 
+                : `${m}:${s}.${ms}`;
+
+            li.innerHTML = `
+                <span class="text-gray-400 font-mono">#${lapCounter.toString().padStart(2, '0')}</span>
+                <span class="text-white digit-font font-bold">${formattedTime}</span>
+            `;
+
+            // Insert at the top so the latest lap is always visible
+            lapsList.insertBefore(li, lapsList.firstChild);
+            lapCounter++;
+
+            // Ensure the list scrolls to show the latest lap
+            if (lapsList.parentElement) {
+                lapsList.parentElement.scrollTop = 0;
+            }
+        }
+
+        function updateUIState() {
+            if (isRunning) {
+                // Change Start Button to Stop (Red)
+                startStopBtn.classList.remove('bg-green-600', 'hover:bg-green-500', 'active:bg-green-700');
+                startStopBtn.classList.add('bg-red-600', 'hover:bg-red-500', 'active:bg-red-700');
+                lblStartStop.innerText = "Stop";
+                iconPlay.classList.add('hidden');
+                iconPause.classList.remove('hidden');
+
+                // Change Reset Button to Lap (Darker)
+                lblResetLap.innerText = "Lap";
+                iconReset.classList.add('hidden');
+                iconLap.classList.remove('hidden');
+            } else {
+                // Change Stop Button to Start (Green)
+                startStopBtn.classList.remove('bg-red-600', 'hover:bg-red-500', 'active:bg-red-700');
+                startStopBtn.classList.add('bg-green-600', 'hover:bg-green-500', 'active:bg-green-700');
+                lblStartStop.innerText = "Start";
+                iconPlay.classList.remove('hidden');
+                iconPause.classList.add('hidden');
+
+                // Change Lap Button to Reset
+                lblResetLap.innerText = "Reset";
+                iconReset.classList.remove('hidden');
+                iconLap.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
